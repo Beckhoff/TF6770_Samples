@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.6">
+  <POU Name="FB_MyWebsocketClient" Id="{9884d961-7a19-4f35-8d79-63f73678d200}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'c++_compatible'}
+{attribute 'no_explicit_call' := 'do not call this POU directly'}
+FUNCTION_BLOCK FB_MyWebsocketClient EXTENDS FB_IotWebSocketClient
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	bMessageReceived	: BOOL;			// TRUE if (at least one) message was received during last execution
+	sMessage			: STRING(255);	// last received message
+	nMessageSize		: UDINT;		// size in bytes of last received message
+	nMessageRcvCnt		: UDINT;		// count of all received messages
+	nCounter:INT;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="Execute" Id="{802cfce6-1bb2-4b9a-a5c6-c7c6fece0791}">
+      <Declaration><![CDATA[METHOD Execute
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bMessageReceived := FALSE;
+nMessageSize := 0;
+sMessage := '';
+
+SUPER^.Execute();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnWebSocketClose" Id="{325e3faa-4939-45a6-a3b7-cd723d1fa650}">
+      <Declaration><![CDATA[{attribute 'c++_compatible'}
+{attribute 'pack_mode' := '4'}
+{attribute 'show'}
+{attribute 'minimal_input_size' := '4'}
+METHOD OnWebSocketClose : HRESULT
+VAR_INPUT
+	statusCode	: UINT;
+	content	: PVOID;
+	contentLength	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//insert business logic here
+
+SUPER^.OnWebSocketClose(statusCode:=statusCode, content:=content, contentLength:=contentLength);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnWebSocketMessage" Id="{535c7177-5bcd-4f3d-aa83-bfcee997fe8e}">
+      <Declaration><![CDATA[{attribute 'c++_compatible'}
+{attribute 'pack_mode' := '4'}
+{attribute 'show'}
+{attribute 'minimal_input_size' := '4'}
+METHOD OnWebSocketMessage : HRESULT
+VAR_INPUT
+	content			: PVOID;
+	contentLength	: UDINT;
+	contentType		: ETcIotWebSocketContentType;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bMessageReceived := TRUE;
+nMessageRcvCnt := nMessageRcvCnt + 1;
+nMessageSize := contentLength;
+IF content <> NULL AND contentLength < SIZEOF(sMessage) THEN		
+	MEMCPY(ADR(sMessage), content, contentLength); 
+END_IF
+
+OnWebSocketMessage := SUPER^.OnWebSocketMessage(content:=content, contentLength:=contentLength, contentType:=contentType);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

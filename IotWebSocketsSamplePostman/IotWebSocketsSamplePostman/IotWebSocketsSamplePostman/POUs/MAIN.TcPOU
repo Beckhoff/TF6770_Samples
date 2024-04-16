@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.6">
+  <POU Name="MAIN" Id="{3e7ab9ab-9862-4313-b667-7fe0e2c2057c}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	eState			: E_State;
+	eFailedState	: E_State;
+	fbWebsocket		: FB_MyWebsocketClient;
+	bConnect		: BOOL;				// set TRUE to connect and start application
+	bSendMsg		: BOOL := TRUE;		// if TRUE one message will be sent
+	sMessage		: STRING(255) := 'This is a message'; 	
+	sMessageRcv		: STRING(255);
+	nMessageRcvCnt	: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE eState OF
+E_State.idle:
+	fbWebsocket.sHostName		:= 'ws.postman-echo.com';
+	fbWebsocket.nHostPort		:= 443;
+	fbWebsocket.sOrigin			:= 'myOrigin';
+	fbWebsocket.sProtocol		:= 'myprotocol';	
+	fbWebsocket.sUri			:= 'raw';
+	fbWebsocket.bPerMessageDeflate := TRUE;
+	fbWebsocket.stTLS.bNoServerCertCheck:=TRUE;
+	
+	fbWebsocket.Execute();
+	IF bConnect AND NOT fbWebsocket.bConnected THEN
+		eState := E_State.connect;
+	END_IF
+	
+E_State.connect:
+	IF fbWebsocket.Connect(bReconfig:=TRUE) THEN
+		sMessageRcv := '';
+		eState := E_State.sendMsg;
+	ELSE
+		eState := E_State.error;
+		eFailedState := E_State.connect;
+	END_IF 
+	
+E_State.sendMsg:
+	fbWebsocket.Execute();
+	IF fbWebsocket.bConnected AND bSendMsg THEN
+		bSendMsg := FALSE;
+		IF fbWebsocket.SendMessage(ADR(sMessage), LEN2(ADR(sMessage))+1, TRUE, TRUE) THEN 
+			eState := E_State.receiveMsg; 
+		ELSE
+			eState := E_State.error;
+			eFailedState := E_State.sendMsg;
+		END_IF
+	END_IF
+	IF NOT bConnect THEN
+		eState := E_State.disconnect;
+	END_IF 
+	
+E_State.receiveMsg:
+	fbWebsocket.Execute();
+	IF NOT fbWebsocket.bConnected THEN
+		eState := E_State.error;
+		eFailedState := E_State.receiveMsg;
+	ELSIF fbWebsocket.bMessageReceived THEN
+		nMessageRcvCnt := nMessageRcvCnt+1;
+		sMessageRcv := fbWebsocket.sMessage;
+		bConnect := FALSE; // reset in order to disconnect (if connection should be kept open: remove this code line)
+	END_IF
+	IF bSendMsg THEN
+		eState := E_State.sendMsg;
+	END_IF
+	IF NOT bConnect THEN
+		eState := E_State.disconnect;
+	END_IF 
+	
+E_State.disconnect:
+	IF fbWebsocket.Disconnect() THEN
+		eState := E_State.idle;
+	ELSE
+		eState := E_State.error;
+		eFailedState := E_State.disconnect;
+	END_IF
+
+E_State.error:
+	;
+	
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
