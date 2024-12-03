@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.6">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.8">
   <POU Name="FB_MyWebsocketClient" Id="{9884d961-7a19-4f35-8d79-63f73678d200}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'c++_compatible'}
 {attribute 'no_explicit_call' := 'do not call this POU directly'}
@@ -64,7 +64,8 @@ END_VAR
         <ST><![CDATA[bMessageReceived := TRUE;
 nMessageRcvCnt := nMessageRcvCnt + 1;
 nMessageSize := contentLength;
-IF content <> NULL AND contentLength < SIZEOF(sMessage) THEN		
+IF content <> NULL AND contentLength < SIZEOF(sMessage) THEN	
+	MEMSET(ADR(sMessage), 0 , SIZEOF(sMessage));	
 	MEMCPY(ADR(sMessage), content, contentLength); 
 END_IF
 
